@@ -1,3 +1,0 @@
-/home/vivek/opencode-cpp/build/CMakeFiles/opencode_cpp.dir
-/home/vivek/opencode-cpp/build/CMakeFiles/edit_cache.dir
-/home/vivek/opencode-cpp/build/CMakeFiles/rebuild_cache.dir
