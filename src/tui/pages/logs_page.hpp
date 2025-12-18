@@ -14,11 +14,12 @@ class LogsPage final : public Page {
 
   PageId id() const override { return PageId::Logs; }
   void on_resize(RenderCtx) override {}
-  void on_key(int) override {}
+  void on_key(int ch) override;
   void render(RenderCtx ctx) override;
 
  private:
   logging::Logger& logger_;
+  int selected_ = 0;
 };
 
 }  // namespace tui

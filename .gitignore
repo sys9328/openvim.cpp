@@ -1,1 +1,8 @@
 build/
+
+# Local runtime data
+.openvim/
+*.db
+
+# Editor settings
+.vscode/

@@ -13,7 +13,10 @@ namespace tui {
 
 class App {
  public:
-  explicit App(logging::Logger& logger);
+  App(logging::Logger& logger,
+      ReplPage::SessionsProvider sessions_provider,
+      ReplPage::MessagesProvider messages_provider,
+      ReplPage::SendFn send);
 
   // Runs the blocking UI loop. Returns when the user quits.
   int run();
@@ -26,6 +29,7 @@ class App {
   void render();
 
   void move_to(PageId id);
+  void toggle_help();
 
   logging::Logger& logger_;
   RenderCtx ctx_{};
@@ -36,6 +40,10 @@ class App {
   std::unique_ptr<InitPage> init_page_;
   std::unique_ptr<ReplPage> repl_page_;
   std::unique_ptr<LogsPage> logs_page_;
+
+  bool show_help_ = false;
+  static constexpr int k_status_height_ = 1;
+  static constexpr int k_help_height_ = 6;
 
   bool running_ = true;
 };
