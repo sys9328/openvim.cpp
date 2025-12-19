@@ -4,6 +4,9 @@
 #include <vector>
 
 #include "logging/logger.hpp"
+#include "message/message.hpp"
+#include "pubsub/broker.hpp"
+#include "session/session.hpp"
 #include "tui/page.hpp"
 #include "tui/pages/init_page.hpp"
 #include "tui/pages/logs_page.hpp"
@@ -16,7 +19,9 @@ class App {
   App(logging::Logger& logger,
       ReplPage::SessionsProvider sessions_provider,
       ReplPage::MessagesProvider messages_provider,
-      ReplPage::SendFn send);
+      ReplPage::SendFn send,
+      std::shared_ptr<pubsub::Channel<pubsub::Event<message::Message>>> message_subscriber,
+      std::shared_ptr<pubsub::Channel<pubsub::Event<session::Session>>> session_subscriber);
 
   // Runs the blocking UI loop. Returns when the user quits.
   int run();
@@ -32,6 +37,8 @@ class App {
   void toggle_help();
 
   logging::Logger& logger_;
+  std::shared_ptr<pubsub::Channel<pubsub::Event<message::Message>>> message_subscriber_;
+  std::shared_ptr<pubsub::Channel<pubsub::Event<session::Session>>> session_subscriber_;
   RenderCtx ctx_{};
 
   PageId current_ = PageId::Repl;
@@ -46,6 +53,7 @@ class App {
   static constexpr int k_help_height_ = 6;
 
   bool running_ = true;
+  std::atomic<bool> needs_render_{false};
 };
 
 }  // namespace tui

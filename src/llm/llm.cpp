@@ -31,4 +31,15 @@ std::shared_ptr<pubsub::Channel<pubsub::Event<AgentEvent>>> Service::subscribe()
   return broker_.subscribe();
 }
 
+std::string Service::generate_title(const std::string& content) {
+  // Stub: Generate a simple title based on content.
+  // In a real implementation, send to LLM with a prompt like:
+  // "Generate a short title (max 80 chars) summarizing this message: " + content
+  if (content.length() <= 50) {
+    return content;
+  } else {
+    return content.substr(0, 47) + "...";
+  }
+}
+
 }  // namespace llm

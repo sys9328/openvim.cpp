@@ -67,6 +67,8 @@ Message Service::create(const std::string& session_id, Role role, std::string co
   sqlite3_finalize(stmt);
   if (rc != SQLITE_DONE) throw std::runtime_error(sqlite3_errmsg(db_.get()));
 
+  broker_.publish(pubsub::EventType::Created, m);
+
   return m;
 }
 
@@ -112,6 +114,10 @@ std::string role_to_string(Role r) {
       return "assistant";
   }
   return "user";
+}
+
+std::shared_ptr<pubsub::Channel<pubsub::Event<Message>>> Service::subscribe() {
+  return broker_.subscribe();
 }
 
 }  // namespace message

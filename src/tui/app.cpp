@@ -30,8 +30,10 @@ static Page* page_ptr(PageId id, InitPage* init, ReplPage* repl, LogsPage* logs)
 App::App(logging::Logger& logger,
          ReplPage::SessionsProvider sessions_provider,
          ReplPage::MessagesProvider messages_provider,
-         ReplPage::SendFn send)
-    : logger_(logger) {
+         ReplPage::SendFn send,
+         std::shared_ptr<pubsub::Channel<pubsub::Event<message::Message>>> message_subscriber,
+         std::shared_ptr<pubsub::Channel<pubsub::Event<session::Session>>> session_subscriber)
+    : logger_(logger), message_subscriber_(message_subscriber), session_subscriber_(session_subscriber) {
   init_page_ = std::make_unique<InitPage>();
   repl_page_ = std::make_unique<ReplPage>(std::move(sessions_provider), std::move(messages_provider), std::move(send));
   logs_page_ = std::make_unique<LogsPage>(logger_);
@@ -46,10 +48,32 @@ int App::run() {
   handle_resize();
   render();
 
+  // Thread to listen for message events
+  std::thread message_event_thread([this]() {
+    while (running_) {
+      auto ev = message_subscriber_->pop();
+      if (ev) {
+        needs_render_ = true;
+      }
+    }
+  });
+
+  // Thread to listen for session events
+  std::thread session_event_thread([this]() {
+    while (running_) {
+      auto ev = session_subscriber_->pop();
+      if (ev) {
+        needs_render_ = true;
+      }
+    }
+  });
+
   while (running_) {
-    if (g_resize) {
-      g_resize = false;
-      handle_resize();
+    if (g_resize || needs_render_.exchange(false)) {
+      if (g_resize) {
+        g_resize = false;
+        handle_resize();
+      }
       render();
     }
 
@@ -115,12 +139,19 @@ int App::run() {
     render();
   }
 
+  running_ = false;  // Signal threads to stop
+  if (message_event_thread.joinable()) message_event_thread.join();
+  if (session_event_thread.joinable()) session_event_thread.join();
+
   shutdown_curses();
   return 0;
 }
 
 void App::init_curses() {
   initscr();
+  if (!stdscr) {
+    throw std::runtime_error("Failed to initialize ncurses: not a terminal");
+  }
   cbreak();
   noecho();
   keypad(stdscr, TRUE);

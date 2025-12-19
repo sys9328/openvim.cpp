@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "db/db.hpp"
+#include "pubsub/broker.hpp"
 
 namespace message {
 
@@ -30,10 +31,13 @@ class Service {
 
   std::vector<Message> list(const std::string& session_id);
 
+  std::shared_ptr<pubsub::Channel<pubsub::Event<Message>>> subscribe();
+
  private:
   Message create(const std::string& session_id, Role role, std::string content);
 
   db::Db& db_;
+  pubsub::Broker<Message> broker_;
 };
 
 std::string role_to_string(Role r);

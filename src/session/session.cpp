@@ -115,6 +115,14 @@ void Service::update_title(const std::string& id, const std::string& title) {
   if (rc != SQLITE_DONE) {
     throw std::runtime_error(sqlite3_errmsg(db_.get()));
   }
+
+  // Publish update event
+  Session updated = get(id);
+  broker_.publish(pubsub::EventType::Updated, updated);
+}
+
+std::shared_ptr<pubsub::Channel<pubsub::Event<Session>>> Service::subscribe() {
+  return broker_.subscribe();
 }
 
 }  // namespace session

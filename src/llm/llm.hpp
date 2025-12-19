@@ -31,6 +31,9 @@ class Service {
 
   std::shared_ptr<pubsub::Channel<pubsub::Event<AgentEvent>>> subscribe();
 
+  // Generate a title for the session based on the first message content.
+  std::string generate_title(const std::string& content);
+
  private:
   void worker(std::string session_id, std::string content);
 

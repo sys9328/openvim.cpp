@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "db/db.hpp"
+#include "pubsub/broker.hpp"
 
 namespace session {
 
@@ -23,8 +24,11 @@ class Service {
   Session get(const std::string& id);
   void update_title(const std::string& id, const std::string& title);
 
+  std::shared_ptr<pubsub::Channel<pubsub::Event<Session>>> subscribe();
+
  private:
   db::Db& db_;
+  pubsub::Broker<Session> broker_;
 };
 
 }  // namespace session

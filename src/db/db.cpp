@@ -53,7 +53,7 @@ Db connect(const std::string& data_dir) {
 
   // Apply SQL migrations from ./migrations
   // (commit-style parity with the Go repo, which uses migration files)
-  apply_migrations(raw, "migrations");
+  apply_migrations(raw, "../migrations");
 
   return Db(raw);
 }

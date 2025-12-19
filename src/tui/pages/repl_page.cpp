@@ -35,7 +35,7 @@ void ReplPage::render(RenderCtx ctx) {
   int row = 2;
 
   mvprintw(row++, 0, "REPL");
-  mvprintw(row++, 0, "Type a message and press Enter (stub agent will reply). (Go commit e7258e3 equivalent)");
+  mvprintw(row++, 0, "Type a message and press Enter (stub agent will reply).");
 
   // Sessions
   row++;
