@@ -32,8 +32,9 @@ App::App(logging::Logger& logger,
          ReplPage::MessagesProvider messages_provider,
          ReplPage::SendFn send,
          std::shared_ptr<pubsub::Channel<pubsub::Event<message::Message>>> message_subscriber,
-         std::shared_ptr<pubsub::Channel<pubsub::Event<session::Session>>> session_subscriber)
-    : logger_(logger), message_subscriber_(message_subscriber), session_subscriber_(session_subscriber) {
+         std::shared_ptr<pubsub::Channel<pubsub::Event<session::Session>>> session_subscriber,
+         std::shared_ptr<pubsub::Channel<pubsub::Event<permission::PermissionRequest>>> permission_subscriber)
+    : logger_(logger), message_subscriber_(message_subscriber), session_subscriber_(session_subscriber), permission_subscriber_(permission_subscriber) {
   init_page_ = std::make_unique<InitPage>();
   repl_page_ = std::make_unique<ReplPage>(std::move(sessions_provider), std::move(messages_provider), std::move(send));
   logs_page_ = std::make_unique<LogsPage>(logger_);
@@ -63,6 +64,21 @@ int App::run() {
     while (running_) {
       auto ev = session_subscriber_->pop();
       if (ev) {
+        needs_render_ = true;
+      }
+    }
+  });
+
+  // Thread to listen for permission events
+  std::thread permission_event_thread([this]() {
+    while (running_) {
+      auto ev = permission_subscriber_->pop();
+      if (ev) {
+        // Create permission dialog
+        std::string content = "Tool: " + ev->payload.tool_name + "\n" +
+                             "Action: " + ev->payload.action + "\n" +
+                             "Description: " + ev->payload.description;
+        permission_dialog_ = std::make_unique<PermissionDialog>(ev->payload, content);
         needs_render_ = true;
       }
     }
@@ -126,6 +142,25 @@ int App::run() {
       continue;
     }
 
+    // Handle permission dialog input first if active
+    if (permission_dialog_) {
+      bool keep_open = permission_dialog_->handle_input(ch);
+      if (!keep_open) {
+        // Dialog completed, send response and clear dialog
+        auto response = permission_dialog_->get_response();
+        if (response) {
+          permission::PermissionResponse perm_response{
+            .permission = response->permission,
+            .action = static_cast<permission::PermissionAction>(response->action)
+          };
+          permission::default_service->respond(perm_response);
+        }
+        permission_dialog_.reset();
+        render();
+      }
+      continue;
+    }
+
     // Forward to current page.
     if (auto* p = page_ptr(current_, init_page_.get(), repl_page_.get(), logs_page_.get()); p != nullptr) {
       p->on_key(ch);
@@ -142,6 +177,7 @@ int App::run() {
   running_ = false;  // Signal threads to stop
   if (message_event_thread.joinable()) message_event_thread.join();
   if (session_event_thread.joinable()) session_event_thread.join();
+  if (permission_event_thread.joinable()) permission_event_thread.join();
 
   shutdown_curses();
   return 0;
@@ -195,11 +231,23 @@ void App::render() {
 
   // Header (part of the page area)
   attron(COLOR_PAIR(tui::styles::PrimaryPair));
-  mvprintw(0, 0, "openvim (commit-3)  |  L: logs  ?: help  ESC: close/back  q: quit");
+  mvprintw(0, 0, "openvim  |  L: logs  ?: help  ESC: close/back  q: quit");
   attroff(COLOR_PAIR(tui::styles::PrimaryPair));
 
   if (auto* p = page_ptr(current_, init_page_.get(), repl_page_.get(), logs_page_.get()); p != nullptr) {
     p->render(ctx_);
+  }
+
+  // Render permission dialog if active
+  if (permission_dialog_) {
+    int dialog_w = permission_dialog_->get_width();
+    int dialog_h = permission_dialog_->get_height();
+    int start_y = (ctx_.height - dialog_h) / 2 + 1;  // +1 for header
+    int start_x = (ctx_.width - dialog_w) / 2;
+    
+    WINDOW* dialog_win = newwin(dialog_h, dialog_w, start_y, start_x);
+    permission_dialog_->render(dialog_win, dialog_w, dialog_h);
+    delwin(dialog_win);
   }
 
   int term_h = 0, term_w = 0;

@@ -2,9 +2,30 @@
 
 #include <chrono>
 
+#include "tools/agent_tool.hpp"
+#include "tools/bash_tool.hpp"
+#include "tools/edit_tool.hpp"
+#include "tools/file_tool.hpp"
+#include "tools/glob_tool.hpp"
+#include "tools/grep_tool.hpp"
+#include "tools/ls_tool.hpp"
+#include "tools/view_tool.hpp"
+#include "tools/write_tool.hpp"
+
 namespace llm {
 
-Service::Service(logging::Logger& log, message::Service& messages) : log_(log), messages_(messages) {}
+Service::Service(logging::Logger& log, message::Service& messages) : log_(log), messages_(messages) {
+  // Initialize tools
+  tools_.push_back(std::make_unique<tools::BashTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::AgentTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::EditTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::FileTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::GlobTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::GrepTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::LsTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::ViewTool>(working_dir_));
+  tools_.push_back(std::make_unique<tools::WriteTool>(working_dir_));
+}
 
 void Service::send_request(const std::string& session_id, const std::string& content) {
   broker_.publish(pubsub::EventType::Created, AgentEvent{AgentEventType::Request, session_id, content});
@@ -40,6 +61,10 @@ std::string Service::generate_title(const std::string& content) {
   } else {
     return content.substr(0, 47) + "...";
   }
+}
+
+const std::vector<std::unique_ptr<tools::BaseTool>>& Service::tools() const {
+  return tools_;
 }
 
 }  // namespace llm

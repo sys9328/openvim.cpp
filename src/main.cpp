@@ -3,6 +3,7 @@
 #include "llm/llm.hpp"
 #include "logging/logger.hpp"
 #include "message/message.hpp"
+#include "permission/permission.hpp"
 #include "session/session.hpp"
 #include "tui/app.hpp"
 
@@ -31,11 +32,10 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    session::Service sessions(db);
-    message::Service messages(db);
-    llm::Service llm(log, messages);
-
-    // Create an initial session if none exist.
+  session::Service sessions(db);
+  message::Service messages(db);
+  // permission::Service permissions(db);  // Now using global default_service
+  llm::Service llm(log, messages);    // Create an initial session if none exist.
     std::string active_session_id;
     try {
       auto existing = sessions.list();
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
       llm.send_request(active_session_id, content);
     };
 
-    tui::App app(log, titles_provider, messages_provider, send, messages.subscribe(), sessions.subscribe());
+    tui::App app(log, titles_provider, messages_provider, send, messages.subscribe(), sessions.subscribe(), permission::default_service->subscribe());
     int rc = app.run();
 
     running = false;

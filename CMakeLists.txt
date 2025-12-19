@@ -14,10 +14,21 @@ add_executable(openvim
   src/session/session.cpp
   src/message/message.cpp
   src/llm/llm.cpp
+  src/permission/permission.cpp
+  src/tools/agent_tool.cpp
+  src/tools/bash_tool.cpp
+  src/tools/edit_tool.cpp
+  src/tools/file_tool.cpp
+  src/tools/glob_tool.cpp
+  src/tools/grep_tool.cpp
+  src/tools/ls_tool.cpp
+  src/tools/view_tool.cpp
+  src/tools/write_tool.cpp
   src/tui/app.cpp
   src/tui/pages/init_page.cpp
   src/tui/pages/repl_page.cpp
   src/tui/pages/logs_page.cpp
+  src/tui/components/permission_dialog.cpp
 )
 
 target_include_directories(openvim PRIVATE src)

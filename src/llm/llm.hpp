@@ -1,12 +1,15 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "logging/logger.hpp"
 #include "message/message.hpp"
 #include "pubsub/broker.hpp"
+#include "tools/tool.hpp"
 
 namespace llm {
 
@@ -34,12 +37,17 @@ class Service {
   // Generate a title for the session based on the first message content.
   std::string generate_title(const std::string& content);
 
+  // Get available tools
+  const std::vector<std::unique_ptr<tools::BaseTool>>& tools() const;
+
  private:
   void worker(std::string session_id, std::string content);
 
   logging::Logger& log_;
   message::Service& messages_;
   pubsub::Broker<AgentEvent> broker_;
+  std::vector<std::unique_ptr<tools::BaseTool>> tools_;
+  std::string working_dir_ = ".";
 };
 
 }  // namespace llm
