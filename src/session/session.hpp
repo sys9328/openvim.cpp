@@ -20,6 +20,8 @@ class Service {
 
   Session create(std::string title);
   std::vector<Session> list();
+  Session get(const std::string& id);
+  void update_title(const std::string& id, const std::string& title);
 
  private:
   db::Db& db_;

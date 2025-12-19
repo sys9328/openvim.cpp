@@ -78,4 +78,43 @@ std::vector<Session> Service::list() {
   return out;
 }
 
+Session Service::get(const std::string& id) {
+  sqlite3_stmt* stmt = nullptr;
+  const char* sql = "SELECT id, title, created_at FROM sessions WHERE id = ? LIMIT 1;";
+  if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    throw std::runtime_error(sqlite3_errmsg(db_.get()));
+  }
+  sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step(stmt);
+  if (rc != SQLITE_ROW) {
+    sqlite3_finalize(stmt);
+    throw std::runtime_error("session not found");
+  }
+
+  Session s;
+  s.id = (const char*)sqlite3_column_text(stmt, 0);
+  s.title = (const char*)sqlite3_column_text(stmt, 1);
+  s.created_at = sqlite3_column_int64(stmt, 2);
+
+  sqlite3_finalize(stmt);
+  return s;
+}
+
+void Service::update_title(const std::string& id, const std::string& title) {
+  sqlite3_stmt* stmt = nullptr;
+  const char* sql = "UPDATE sessions SET title = ? WHERE id = ?;";
+  if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    throw std::runtime_error(sqlite3_errmsg(db_.get()));
+  }
+  sqlite3_bind_text(stmt, 1, title.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 2, id.c_str(), -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step(stmt);
+  sqlite3_finalize(stmt);
+  if (rc != SQLITE_DONE) {
+    throw std::runtime_error(sqlite3_errmsg(db_.get()));
+  }
+}
+
 }  // namespace session
