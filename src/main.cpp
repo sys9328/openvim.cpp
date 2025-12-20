@@ -5,9 +5,10 @@
 #include "message/message.hpp"
 #include "permission/permission.hpp"
 #include "session/session.hpp"
-#include "gui/main_window.hpp"
 
-#include <QApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QGuiApplication>
 #include <QDir>
 #include <QStandardPaths>
 #include <atomic>
@@ -16,7 +17,7 @@
 #include <thread>
 
 int main(int argc, char** argv) {
-  QApplication app(argc, argv);
+  QGuiApplication app(argc, argv);
 
   // Set application properties
   app.setApplicationName("openvim");
@@ -79,20 +80,43 @@ int main(int argc, char** argv) {
       active_session_id = s.id;
     }
 
-    std::cout << "Creating main window..." << std::endl;
-    MainWindow window(log, sessions, messages, llm, active_session_id);
-    std::cout << "Main window created successfully" << std::endl;
+    std::cout << "Creating QML application engine..." << std::endl;
+    QQmlApplicationEngine engine;
+    std::cout << "QML engine created successfully" << std::endl;
+
+    // TODO: Expose services to QML context
+    // engine.rootContext()->setContextProperty("logger", &log);
+    // engine.rootContext()->setContextProperty("sessions", &sessions);
+    // engine.rootContext()->setContextProperty("messages", &messages);
+    // engine.rootContext()->setContextProperty("llm", &llm);
+    // engine.rootContext()->setContextProperty("activeSessionId", QString::fromStdString(active_session_id));
 
     if (cfg.test_mode) {
-      std::cout << "Test mode: GUI components created successfully!" << std::endl;
-      std::cout << "Window title: " << window.windowTitle().toStdString() << std::endl;
-      std::cout << "Window size: " << window.size().width() << "x" << window.size().height() << std::endl;
+      std::cout << "Test mode: QML engine created successfully!" << std::endl;
+      std::cout << "Loading QML file..." << std::endl;
+
+      const QUrl url(QStringLiteral("qrc:/main.qml"));
+      engine.load(url);
+
+      if (engine.rootObjects().isEmpty()) {
+        std::cerr << "Failed to load QML file" << std::endl;
+        return 1;
+      }
+
+      std::cout << "QML file loaded successfully!" << std::endl;
       return 0;
     }
 
-    std::cout << "Showing main window..." << std::endl;
-    window.show();
-    std::cout << "Main window shown, starting event loop..." << std::endl;
+    std::cout << "Loading QML interface..." << std::endl;
+    const QUrl url(QStringLiteral("qrc:/main.qml"));
+    engine.load(url);
+
+    if (engine.rootObjects().isEmpty()) {
+      std::cerr << "Failed to load QML interface" << std::endl;
+      return 1;
+    }
+
+    std::cout << "QML interface loaded, starting event loop..." << std::endl;
 
     int result = app.exec();
     std::cout << "Application exited with code: " << result << std::endl;

@@ -11,9 +11,10 @@ add_subdirectory(external/cpp-mcp)
 # Find Qt
 find_package(Qt6 QUIET)
 if(NOT Qt6_FOUND)
-    find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
+    find_package(Qt5 REQUIRED COMPONENTS Core Qml Quick)
     set(QT_VERSION 5)
 else()
+    find_package(Qt6 REQUIRED COMPONENTS Core Qml Quick)
     set(QT_VERSION 6)
 endif()
 
@@ -25,15 +26,17 @@ set(CMAKE_AUTOUIC ON)
 # Try to find static Qt libraries first
 if(QT_VERSION EQUAL 6)
     find_library(QT6_CORE_STATIC Qt6Core PATHS /usr/lib/x86_64-linux-gnu)
-    find_library(QT6_WIDGETS_STATIC Qt6Widgets PATHS /usr/lib/x86_64-linux-gnu)
-    if(QT6_CORE_STATIC AND QT6_WIDGETS_STATIC)
+    find_library(QT6_QML_STATIC Qt6Qml PATHS /usr/lib/x86_64-linux-gnu)
+    find_library(QT6_QUICK_STATIC Qt6Quick PATHS /usr/lib/x86_64-linux-gnu)
+    if(QT6_CORE_STATIC AND QT6_QML_STATIC AND QT6_QUICK_STATIC)
         set(QT_STATIC_LINKING ON)
         message(STATUS "Using static Qt6 libraries")
     endif()
 elseif(QT_VERSION EQUAL 5)
     find_library(QT5_CORE_STATIC Qt5Core PATHS /usr/lib/x86_64-linux-gnu)
-    find_library(QT5_WIDGETS_STATIC Qt5Widgets PATHS /usr/lib/x86_64-linux-gnu)
-    if(QT5_CORE_STATIC AND QT5_WIDGETS_STATIC)
+    find_library(QT5_QML_STATIC Qt5Qml PATHS /usr/lib/x86_64-linux-gnu)
+    find_library(QT5_QUICK_STATIC Qt5Quick PATHS /usr/lib/x86_64-linux-gnu)
+    if(QT5_CORE_STATIC AND QT5_QML_STATIC AND QT5_QUICK_STATIC)
         set(QT_STATIC_LINKING ON)
         message(STATUS "Using static Qt5 libraries")
     endif()
@@ -59,12 +62,7 @@ add_executable(openvim
   src/tools/mcp_tool.cpp
   src/tools/view_tool.cpp
   src/tools/write_tool.cpp
-  src/gui/main_window.cpp
-  src/gui/code_editor.cpp
-  src/gui/chat_widget.cpp
-  src/gui/file_browser.cpp
-  src/gui/tool_output.cpp
-  src/gui/permission_dialog.cpp
+  src/gui/resources.qrc
 )
 
 target_include_directories(openvim PRIVATE src)
@@ -81,9 +79,9 @@ target_link_libraries(openvim PRIVATE SQLite::SQLite3 mcp)
 
 # Qt libraries
 if(QT_VERSION EQUAL 6)
-    target_link_libraries(openvim PRIVATE Qt6::Core Qt6::Widgets)
+    target_link_libraries(openvim PRIVATE Qt6::Core Qt6::Qml Qt6::Quick)
 else()
-    target_link_libraries(openvim PRIVATE Qt5::Core Qt5::Widgets)
+    target_link_libraries(openvim PRIVATE Qt5::Core Qt5::Qml Qt5::Quick)
 endif()
 
 # Add linker flags to avoid snap library conflicts

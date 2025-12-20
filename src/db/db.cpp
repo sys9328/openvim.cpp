@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <stdexcept>
+#include <unistd.h>
+#include <limits.h>
 
 #include "db/migrate.hpp"
 
@@ -53,7 +55,19 @@ Db connect(const std::string& data_dir) {
 
   // Apply SQL migrations from ./migrations
   // (commit-style parity with the Go repo, which uses migration files)
-  apply_migrations(raw, "../migrations");
+  // Use path relative to executable location
+  std::string migrations_path = "../migrations";
+  if (!fs::exists(migrations_path)) {
+    // Try relative to executable if ../migrations doesn't exist
+    char exe_path[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
+    if (len != -1) {
+      exe_path[len] = '\0';
+      fs::path exe_dir = fs::path(exe_path).parent_path();
+      migrations_path = (exe_dir / ".." / "migrations").string();
+    }
+  }
+  apply_migrations(raw, migrations_path);
 
   return Db(raw);
 }
