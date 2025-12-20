@@ -5,96 +5,99 @@
 #include "message/message.hpp"
 #include "permission/permission.hpp"
 #include "session/session.hpp"
-#include "tui/app.hpp"
+#include "gui/main_window.hpp"
 
+#include <QApplication>
+#include <QDir>
+#include <QStandardPaths>
 #include <atomic>
 #include <chrono>
 #include <iostream>
 #include <thread>
 
 int main(int argc, char** argv) {
+  QApplication app(argc, argv);
+
+  // Set application properties
+  app.setApplicationName("openvim");
+  app.setApplicationVersion("1.0");
+  app.setOrganizationName("openvim");
+
+  std::cout << "Starting openvim - agentic development platform..." << std::endl;
+
   try {
-    std::cout << "Starting openvim..." << std::endl;
+    std::cout << "Parsing command line arguments..." << std::endl;
     auto cfg = config::parse_args_or_exit(argc, argv);
 
+    std::cout << "Creating logger..." << std::endl;
     logging::Logger log;
-    log.info("Starting openvim...");
+    log.info("Starting OpenCode...");
     if (cfg.debug) log.debug("Debug enabled");
     std::cout << "Logger created" << std::endl;
 
+    std::cout << "Connecting to database..." << std::endl;
     db::Db db;
     try {
       db = db::connect(cfg.data_dir);
       log.info("DB ready at data dir: " + cfg.data_dir);
-      std::cout << "DB connected" << std::endl;
+      std::cout << "DB connected successfully" << std::endl;
     } catch (const std::exception& e) {
       log.error(std::string("DB init failed: ") + e.what());
+      std::cerr << "Database initialization failed: " << e.what() << std::endl;
       return 1;
     }
 
-  session::Service sessions(db);
-  message::Service messages(db);
-  // permission::Service permissions(db);  // Now using global default_service
-  llm::Service llm(log, messages);    // Create an initial session if none exist.
+    std::cout << "Creating services..." << std::endl;
+    session::Service sessions(db);
+    message::Service messages(db);
+    llm::Service llm(log, messages, cfg);
+    std::cout << "Services created successfully" << std::endl;
+
+    // Create an initial session if none exist
+    std::cout << "Checking for existing sessions..." << std::endl;
     std::string active_session_id;
     try {
       auto existing = sessions.list();
       if (existing.empty()) {
+        std::cout << "No existing sessions, creating welcome session..." << std::endl;
         auto s = sessions.create("Welcome session");
         active_session_id = s.id;
+        std::cout << "Welcome session created with ID: " << active_session_id << std::endl;
       } else {
         active_session_id = existing.front().id;
+        std::cout << "Using existing session with ID: " << active_session_id << std::endl;
       }
     } catch (const std::exception& e) {
       log.warn(std::string("Session bootstrap failed: ") + e.what());
+      std::cerr << "Session bootstrap failed: " << e.what() << std::endl;
     }
 
-    // If DB has no session for some reason, create one.
+    // If DB has no session for some reason, create one
     if (active_session_id.empty()) {
+      std::cout << "Creating fallback session..." << std::endl;
       auto s = sessions.create("Welcome session");
       active_session_id = s.id;
     }
 
-    std::atomic<bool> running{true};
-    std::thread producer([&] {
-      using namespace std::chrono_literals;
-      for (int i = 1; running && i <= 3; i++) {
-        std::this_thread::sleep_for(700ms);
-        if (cfg.debug) log.debug("tick " + std::to_string(i));
-      }
-    });
+    std::cout << "Creating main window..." << std::endl;
+    MainWindow window(log, sessions, messages, llm, active_session_id);
+    std::cout << "Main window created successfully" << std::endl;
 
-    auto titles_provider = [&sessions]() -> std::vector<std::string> {
-      std::vector<std::string> out;
-      for (auto& s : sessions.list()) out.push_back(s.title);
-      return out;
-    };
+    if (cfg.test_mode) {
+      std::cout << "Test mode: GUI components created successfully!" << std::endl;
+      std::cout << "Window title: " << window.windowTitle().toStdString() << std::endl;
+      std::cout << "Window size: " << window.size().width() << "x" << window.size().height() << std::endl;
+      return 0;
+    }
 
-    auto messages_provider = [&messages, &active_session_id]() -> std::vector<std::string> {
-      std::vector<std::string> out;
-      for (auto& m : messages.list(active_session_id)) {
-        out.push_back(message::role_to_string(m.role) + ": " + m.content);
-      }
-      return out;
-    };
+    std::cout << "Showing main window..." << std::endl;
+    window.show();
+    std::cout << "Main window shown, starting event loop..." << std::endl;
 
-    auto send = [&messages, &llm, &sessions, &active_session_id](std::string content) {
-      messages.create_user(active_session_id, content);
-      // Generate title if this is the first message in the session
-      auto msg_list = messages.list(active_session_id);
-      if (msg_list.size() == 1) {  // Just created the user message
-        std::string title = llm.generate_title(content);
-        sessions.update_title(active_session_id, title);
-      }
-      llm.send_request(active_session_id, content);
-    };
+    int result = app.exec();
+    std::cout << "Application exited with code: " << result << std::endl;
+    return result;
 
-    tui::App app(log, titles_provider, messages_provider, send, messages.subscribe(), sessions.subscribe(), permission::default_service->subscribe());
-    int rc = app.run();
-
-    running = false;
-    if (producer.joinable()) producer.join();
-    return rc;
   } catch (const std::exception& e) {
     std::cerr << "Fatal error: " << e.what() << std::endl;
     return 1;
